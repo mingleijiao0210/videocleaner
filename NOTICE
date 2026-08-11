@@ -1,0 +1,8 @@
+VideoCleaner
+
+Original application code is distributed under the Apache License 2.0.
+
+Third-party components are listed in THIRD_PARTY_NOTICES.md and retain their
+respective licenses. Restricted non-commercial ProPainter code and models,
+FFmpeg binaries, VSR engine runtimes, and private media are not included in
+this repository.

@@ -1,0 +1,55 @@
+# Local environments and caches
+.venv/
+.venv-*/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+.cache-*/
+.DS_Store
+
+# Local configuration, secrets and logs
+.env
+.env.*
+!.env.example
+settings/*.json
+!settings/.gitkeep
+logs/
+*.log
+
+# User media and generated output
+output/
+test_media/
+screenshots/
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.m4v
+*.webm
+*.png
+*.jpg
+*.jpeg
+
+# Build products and archives
+build/
+dist/
+build_macos/
+dist_macos/
+dist_macos_source/
+*.dmg
+*.zip
+*.tar
+*.tar.gz
+*.spec.bak
+
+# Proprietary/runtime components intentionally supplied separately
+tools/ffmpeg/
+tools/vsr/engine/
+tools/**/models/
+!tools/super_resolution/models/
+!tools/super_resolution/models/FSRCNN_x2.pb

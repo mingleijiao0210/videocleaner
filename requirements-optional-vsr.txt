@@ -1,0 +1,22 @@
+# Optional VSR/AI development dependencies.
+# Install only after obtaining a license-compatible engine and reviewing its
+# model/runtime redistribution terms.
+torch>=2.6,<2.12
+torchvision>=0.21,<0.27
+einops==0.8.2
+paddlepaddle==3.3.0
+paddleocr==2.10.0
+onnxruntime>=1.20,<2
+filesplit==3.0.2
+shapely>=2,<3
+scipy>=1.15,<2
+pillow>=11,<13
+tqdm>=4.67,<5
+scikit-image>=0.25,<1
+imageio>=2.37,<3
+av>=14,<17
+easydict>=1.13,<2
+pyyaml>=6,<7
+matplotlib>=3.10,<4
+platformdirs>=4,<5
+click>=8,<9

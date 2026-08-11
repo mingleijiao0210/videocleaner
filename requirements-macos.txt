@@ -1,0 +1,7 @@
+# Apple Silicon (M1/M2/M3/M4) base dependencies
+PySide6>=6.8,<7
+numpy>=2.2,<3
+opencv-python-headless>=4.11,<5
+pytest>=8.3,<10
+pytest-qt>=4.4,<5
+pyinstaller>=6.11,<7
