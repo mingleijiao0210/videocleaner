@@ -836,7 +836,10 @@ def main() -> int:
                 mask_crop = _refine_overlay_text_mask(
                     temporal_crops or [image_crop],
                     rectangle_mask,
-                    outline_pixels=7,
+                    # 彩色字常带较粗黑描边和阴影；1.8.1 的 7px 余量在
+                    # 个别帧仍会留下外轮廓。强力模式扩大到 10px，仍只
+                    # 在候选笔画周围扩张，不会把整块选框送进模型。
+                    outline_pixels=10,
                 )
                 mask_small = cv2.resize(
                     mask_crop,
@@ -991,7 +994,7 @@ def main() -> int:
             cropped_mask = _refine_overlay_text_mask(
                 cropped_frames,
                 cropped_mask,
-                outline_pixels=5,
+                outline_pixels=8,
             )
             inference_frames = cropped_frames
             inference_mask = cropped_mask

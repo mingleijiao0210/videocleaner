@@ -8,6 +8,11 @@
 - Lowered temporal voting strictness for animated and fading text.
 - Added multilingual and multicolor regression coverage.
 
+## 1.8.2 candidate
+
+- Increased colored-text outline margins for isolated residual outlines.
+- The previous baseline is preserved as the `v1.8.1-stable` tag.
+
 ## Unreleased
 
 - Prepared a privacy-filtered Windows/macOS source layout.
