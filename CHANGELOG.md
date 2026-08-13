@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.8.2 stable A
+
+- Published the locally validated stable A processing core.
+- Preserved the automatic safety margin around manual selections.
+- Kept the color-agnostic, multilingual text detection and real-background
+  blending pipeline.
+
 ## 1.8.1
 
 - Improved language-agnostic text masks for colored, outlined and gradient glyphs.
