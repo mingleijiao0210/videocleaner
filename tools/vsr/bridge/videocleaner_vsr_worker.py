@@ -562,13 +562,29 @@ def main() -> int:
     output_path = Path(args.output).resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
     ymin, ymax, xmin, xmax = args.coords
-    selection_width = max(1, xmax - xmin)
-    selection_height = max(1, ymax - ymin)
     import cv2
 
     probe_capture = cv2.VideoCapture(str(input_path))
     source_fps = float(probe_capture.get(cv2.CAP_PROP_FPS) or 0.0)
+    source_width = int(probe_capture.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
+    source_height = int(probe_capture.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
     probe_capture.release()
+
+    # 手动框选只应作为“大致范围”。不同次框选通常会有几像素到十几像素
+    # 的偏移；如果直接把边界交给 OCR，边缘文字会被裁掉，造成同一视频的
+    # 输出质量明显波动。这里在送入检测前自动扩展一个受限安全边界，遮罩
+    # 仍只覆盖 OCR 实际识别出的文字笔画，不会把整块扩展区域一起抹掉。
+    if source_width > 0 and source_height > 0:
+        selection_width = max(1, xmax - xmin)
+        selection_height = max(1, ymax - ymin)
+        margin_x = max(12, min(32, round(selection_width * 0.03)))
+        margin_y = max(20, min(48, round(selection_height * 0.12)))
+        xmin = max(0, xmin - margin_x)
+        xmax = min(source_width, xmax + margin_x)
+        ymin = max(0, ymin - margin_y)
+        ymax = min(source_height, ymax + margin_y)
+    selection_width = max(1, xmax - xmin)
+    selection_height = max(1, ymax - ymin)
 
     if args.mode in {"propainter", "propainter_fast", "strong", "fast", "precise"}:
         original_get_coordinates = SubtitleDetect.get_coordinates
@@ -836,7 +852,10 @@ def main() -> int:
                 mask_crop = _refine_overlay_text_mask(
                     temporal_crops or [image_crop],
                     rectangle_mask,
-                    outline_pixels=7,
+                    # 彩色字常带较粗黑描边和阴影；1.8.1 的 7px 余量在
+                    # 个别帧仍会留下外轮廓。强力模式扩大到 10px，仍只
+                    # 在候选笔画周围扩张，不会把整块选框送进模型。
+                    outline_pixels=10,
                 )
                 mask_small = cv2.resize(
                     mask_crop,
@@ -991,7 +1010,7 @@ def main() -> int:
             cropped_mask = _refine_overlay_text_mask(
                 cropped_frames,
                 cropped_mask,
-                outline_pixels=5,
+                outline_pixels=8,
             )
             inference_frames = cropped_frames
             inference_mask = cropped_mask

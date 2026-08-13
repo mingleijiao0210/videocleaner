@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 
 APP_NAME = "视频文字区域去除工具"
-APP_VERSION = "1.8.1"
+APP_VERSION = "1.8.2"
 SUPPORTED_EXTENSIONS = {".mp4", ".mov", ".avi", ".mkv", ".m4v", ".webm"}
 VIDEO_FILTER = "视频文件 (*.mp4 *.mov *.avi *.mkv *.m4v *.webm)"
 DEFAULT_CRF = 18
