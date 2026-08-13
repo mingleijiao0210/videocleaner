@@ -236,6 +236,69 @@ def _feather_inpaint_boundaries(
     return feathered_frames
 
 
+def _repair_small_dark_residuals(
+    source: np.ndarray,
+    repaired: np.ndarray,
+    mask: np.ndarray,
+) -> np.ndarray:
+    """Repair only small dark pinholes on a nearly uniform background.
+
+    Unlike the 1.8.3 experiment this never inpaints the complete crop. It
+    skips textured backgrounds and limits work to small connected residuals,
+    preserving the 1.8.2 throughput.
+    """
+
+    import cv2
+    import numpy as np
+
+    binary = (np.asarray(mask) > 127).astype(np.uint8)
+    if not np.any(binary) or source.size == 0 or repaired.size == 0:
+        return repaired
+    ring = cv2.dilate(
+        binary,
+        cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7)),
+        iterations=1,
+    )
+    ring[binary > 0] = 0
+    ring_pixels = source[ring > 0]
+    if ring_pixels.shape[0] < 20:
+        return repaired
+    spread = float(np.mean(np.std(ring_pixels.astype(np.float32), axis=0)))
+    if spread > 20.0:
+        return repaired
+    background_level = float(
+        np.median(cv2.cvtColor(ring_pixels.reshape(-1, 1, 3), cv2.COLOR_BGR2GRAY))
+    )
+    repaired_gray = cv2.cvtColor(repaired, cv2.COLOR_BGR2GRAY)
+    dark = (
+        (binary > 0)
+        & (repaired_gray.astype(np.float32) < background_level - 24.0)
+    ).astype(np.uint8)
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(dark, 8)
+    components = []
+    total_area = int(np.count_nonzero(binary))
+    for label in range(1, count):
+        area = int(stats[label, cv2.CC_STAT_AREA])
+        if 2 <= area <= 420:
+            components.append((label, area))
+    if not components or sum(area for _, area in components) > total_area * 0.10:
+        return repaired
+    result = repaired.copy()
+    height, width = binary.shape
+    for label, _area in components[:24]:
+        x = max(0, int(stats[label, cv2.CC_STAT_LEFT]) - 5)
+        y = max(0, int(stats[label, cv2.CC_STAT_TOP]) - 5)
+        x2 = min(width, int(stats[label, cv2.CC_STAT_LEFT] + stats[label, cv2.CC_STAT_WIDTH] + 5))
+        y2 = min(height, int(stats[label, cv2.CC_STAT_TOP] + stats[label, cv2.CC_STAT_HEIGHT] + 5))
+        local_mask = (labels[y:y2, x:x2] == label).astype(np.uint8) * 255
+        local_source = source[y:y2, x:x2]
+        local_repaired = repaired[y:y2, x:x2]
+        filled = cv2.inpaint(local_source, local_mask, 3, cv2.INPAINT_TELEA)
+        local_repaired[local_mask > 0] = filled[local_mask > 0]
+        result[y:y2, x:x2] = local_repaired
+    return result
+
+
 def _refine_overlay_text_mask(
     frames,
     rectangle_mask,
@@ -921,6 +984,11 @@ def main() -> int:
                             interpolation=cv2.INTER_CUBIC,
                         )
                         filled = cv2.cvtColor(filled_rgb, cv2.COLOR_RGB2BGR)
+                        filled = _repair_small_dark_residuals(
+                            source_crop,
+                            filled,
+                            mask_crop,
+                        )
                         alpha = blend_alphas[batch_index]
                         blended = (
                             filled.astype(np.float32) * alpha

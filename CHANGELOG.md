@@ -13,6 +13,13 @@
 - Increased colored-text outline margins for isolated residual outlines.
 - The previous baseline is preserved as the `v1.8.1-stable` tag.
 
+## 1.8.4 candidate
+
+- Based on the fast 1.8.2 baseline.
+- Added optional local repair only for small dark residual components on nearly
+  uniform backgrounds; no full-crop second inpaint pass.
+- The 1.8.2 baseline is preserved as `v1.8.2-stable`.
+
 ## Unreleased
 
 - Prepared a privacy-filtered Windows/macOS source layout.
