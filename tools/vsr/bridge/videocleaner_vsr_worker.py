@@ -236,6 +236,55 @@ def _feather_inpaint_boundaries(
     return feathered_frames
 
 
+def _repair_uniform_background_residual(
+    source: np.ndarray,
+    repaired: np.ndarray,
+    mask: np.ndarray,
+    radius: int = 8,
+) -> np.ndarray:
+    """Replace dark model specks when the surrounding background is uniform."""
+
+    import cv2
+    import numpy as np
+
+    binary = (np.asarray(mask) > 127).astype(np.uint8)
+    if not np.any(binary) or source.size == 0 or repaired.size == 0:
+        return repaired
+    ring = cv2.dilate(
+        binary,
+        cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)),
+        iterations=1,
+    )
+    ring[binary > 0] = 0
+    pixels = source[ring > 0]
+    if pixels.shape[0] < 20:
+        return repaired
+    spread = float(np.mean(np.std(pixels.astype(np.float32), axis=0)))
+    if spread > 24.0:
+        return repaired
+    fallback = cv2.inpaint(
+        source,
+        (binary * 255).astype(np.uint8),
+        max(3, int(radius)),
+        cv2.INPAINT_TELEA,
+    )
+    ring_gray = cv2.cvtColor(pixels.reshape(-1, 1, 3), cv2.COLOR_BGR2GRAY)
+    background_level = float(np.median(ring_gray))
+    repaired_gray = cv2.cvtColor(repaired, cv2.COLOR_BGR2GRAY)
+    suspicious = (
+        (binary > 0)
+        & (
+            repaired_gray.astype(np.float32)
+            < background_level - max(22.0, spread * 2.5)
+        )
+    )
+    if not np.any(suspicious):
+        return repaired
+    result = repaired.copy()
+    result[suspicious] = fallback[suspicious]
+    return result
+
+
 def _refine_overlay_text_mask(
     frames,
     rectangle_mask,
@@ -921,6 +970,11 @@ def main() -> int:
                             interpolation=cv2.INTER_CUBIC,
                         )
                         filled = cv2.cvtColor(filled_rgb, cv2.COLOR_RGB2BGR)
+                        filled = _repair_uniform_background_residual(
+                            source_crop,
+                            filled,
+                            mask_crop,
+                        )
                         alpha = blend_alphas[batch_index]
                         blended = (
                             filled.astype(np.float32) * alpha

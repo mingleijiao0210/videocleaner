@@ -22,6 +22,7 @@ from tools.vsr.bridge.videocleaner_vsr_worker import (
     _propagate_boxes_temporally,
     _propainter_crop_rect,
     _refine_overlay_text_mask,
+    _repair_uniform_background_residual,
     _safe_continuous_ranges,
     _safe_merge_intervals,
     _strong_crop_rect,
@@ -218,6 +219,26 @@ def test_sttn_boundary_feather_keeps_source_outside_and_repair_in_core():
     assert feathered[0][10, 10].tolist() == [80, 80, 80]
     edge_value = int(feathered[0][5, 10, 0])
     assert 80 < edge_value < 200
+
+
+def test_uniform_background_replaces_dark_model_pinholes():
+    source = np.full((48, 120, 3), 224, dtype=np.uint8)
+    cv2.putText(
+        source,
+        "ABC",
+        (28, 32),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.9,
+        (10, 10, 10),
+        5,
+        cv2.LINE_AA,
+    )
+    mask = np.zeros((48, 120), dtype=np.uint8)
+    mask[10:40, 20:100] = 255
+    repaired = np.full_like(source, 224)
+    repaired[20:28, 38:46] = 0
+    result = _repair_uniform_background_residual(source, repaired, mask)
+    assert int(result[23, 42, 0]) > 180
 
 
 def test_overlay_mask_keeps_character_strokes_not_the_ocr_rectangle():

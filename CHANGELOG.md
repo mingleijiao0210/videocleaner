@@ -13,6 +13,12 @@
 - Increased colored-text outline margins for isolated residual outlines.
 - The previous baseline is preserved as the `v1.8.1-stable` tag.
 
+## 1.8.3 candidate
+
+- Added a low-texture background safeguard that replaces dark model pinholes
+  with local OpenCV inpainting.
+- The safeguard activates only when the unmasked ring is nearly uniform.
+
 ## Unreleased
 
 - Prepared a privacy-filtered Windows/macOS source layout.
