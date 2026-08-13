@@ -78,3 +78,31 @@ def test_uniform_region_produces_empty_mask():
     roi = np.full((80, 300, 3), 245, np.uint8)
     mask = detect_text_mask(roi)
     assert cv2.countNonZero(mask) == 0
+
+
+def test_color_agnostic_mask_covers_green_cyan_and_magenta_text():
+    image = np.full((120, 360, 3), (76, 98, 112), np.uint8)
+    truth = np.zeros(image.shape[:2], np.uint8)
+    for text, origin, color in (
+        ("GREEN", (12, 48), (0, 255, 0)),
+        ("CYAN", (132, 48), (255, 255, 0)),
+        ("MAGENTA", (238, 48), (255, 0, 255)),
+    ):
+        cv2.putText(
+            image, text, origin, cv2.FONT_HERSHEY_SIMPLEX, 0.82, color, 3, cv2.LINE_AA
+        )
+        cv2.putText(
+            truth,
+            text,
+            origin,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.82,
+            255,
+            3,
+            cv2.LINE_AA,
+        )
+    mask = detect_text_mask(image)
+    coverage = cv2.countNonZero(cv2.bitwise_and(mask, truth)) / max(
+        cv2.countNonZero(truth), 1
+    )
+    assert coverage >= 0.85

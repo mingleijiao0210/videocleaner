@@ -154,11 +154,28 @@ def detect_text_mask(
     )
     candidate[colorful] = 255
 
+    # 不再限制为红/黄等固定颜色：对 HSV 饱和度、LAB 色度通道做局部
+    # 背景差分，覆盖绿色、青色、蓝色、紫色以及渐变字。
+    for channel in (hsv[:, :, 1], lab[:, :, 1], lab[:, :, 2]):
+        channel_background = cv2.medianBlur(channel, local_kernel)
+        chroma_difference = cv2.absdiff(channel, channel_background)
+        chroma_values = chroma_difference[chroma_difference > 0]
+        if chroma_values.size:
+            chroma_threshold = max(4, int(np.percentile(chroma_values, 58)))
+            candidate[chroma_difference >= chroma_threshold] = 255
+
     # 彩色描边文字的中心可能亮度差较小，用边缘补齐这些笔画。
     median_gray = float(np.median(gray))
     canny_low = max(20, int(median_gray * 0.45))
     canny_high = max(canny_low + 20, int(median_gray * 1.15))
     edges = cv2.Canny(gray, canny_low, min(canny_high, 255))
+    for channel in (hsv[:, :, 1], lab[:, :, 1], lab[:, :, 2]):
+        channel_low = max(8, int(np.percentile(channel, 12)))
+        channel_high = max(channel_low + 18, int(np.percentile(channel, 82)))
+        edges = cv2.bitwise_or(
+            edges,
+            cv2.Canny(channel, channel_low, min(channel_high, 255)),
+        )
     edge_gate = np.where(response >= max(6, threshold // 2), 255, 0).astype(
         np.uint8
     )

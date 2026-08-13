@@ -24,8 +24,6 @@ def setup_logger() -> logging.Logger:
             encoding="utf-8",
         )
     except OSError:
-        # Importing the application must remain possible in read-only sandboxes
-        # and CI. File logging is best-effort; stderr is safe for diagnostics.
         handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(
         logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")

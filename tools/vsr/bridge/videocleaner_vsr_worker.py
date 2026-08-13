@@ -259,32 +259,81 @@ def _refine_overlay_text_mask(
 
     votes = np.zeros(restriction.shape, dtype=np.uint16)
     for frame in frames:
+        # Do not whitelist only white/yellow/red text.  A green, cyan,
+        # magenta, blue or gradient glyph can have nearly the same luminance
+        # as its background.  Use local contrast in all LAB channels and in
+        # saturation, plus edges from every channel.  This is intentionally
+        # colour-agnostic and works for Latin, CJK and other scripts because
+        # it detects strokes rather than language-specific characters.
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        hue, saturation, value = cv2.split(hsv)
-        white = (value >= 220) & (saturation <= 60)
-        yellow = (
-            (hue >= 12)
-            & (hue <= 38)
-            & (saturation >= 165)
-            & (value >= 185)
+        lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        saturation = hsv[:, :, 1]
+        channels = [gray, saturation, lab[:, :, 1], lab[:, :, 2]]
+        kernel_size = max(3, min(15, int(round(min(frame.shape[:2]) / 12))))
+        if kernel_size % 2 == 0:
+            kernel_size += 1
+        local_differences = []
+        edge_mask = np.zeros(restriction.shape, dtype=np.uint8)
+        for channel in channels:
+            background = cv2.medianBlur(channel, kernel_size)
+            local_differences.append(cv2.absdiff(channel, background))
+            low = max(10, int(np.percentile(channel, 18)))
+            high = max(low + 18, int(np.percentile(channel, 82)))
+            edge_mask = cv2.bitwise_or(
+                edge_mask,
+                cv2.Canny(channel, low, min(high, 255)),
+            )
+        contrast = np.maximum.reduce(local_differences)
+        inside = restriction > 0
+        contrast_values = contrast[inside]
+        contrast_threshold = max(
+            5,
+            int(np.percentile(contrast_values, 62)) if contrast_values.size else 5,
         )
-        vivid_non_green = (
-            (saturation >= 170)
-            & (value >= 175)
-            & ((hue < 10) | (hue > 105))
+        chroma = np.maximum(local_differences[1], local_differences[2])
+        colorful = (saturation >= np.median(saturation[inside]) + 6) & (chroma >= 4)
+        # Morphological top-hat/black-hat catches thin outlined glyphs whose
+        # fill is close to the local background colour.
+        stroke_kernel = cv2.getStructuringElement(
+            cv2.MORPH_RECT,
+            (max(5, kernel_size * 2 + 1), max(3, kernel_size // 2 * 2 + 1)),
+        )
+        stroke_response = np.maximum(
+            cv2.morphologyEx(gray, cv2.MORPH_TOPHAT, stroke_kernel),
+            cv2.morphologyEx(gray, cv2.MORPH_BLACKHAT, stroke_kernel),
+        )
+        stroke_threshold = max(
+            5,
+            int(np.percentile(stroke_response[inside], 68))
+            if np.any(inside)
+            else 5,
         )
         candidate = (
-            (white | yellow | vivid_non_green)
-            & (restriction > 0)
+            (
+                (contrast >= contrast_threshold)
+                | colorful
+                | (stroke_response >= stroke_threshold)
+                | (edge_mask > 0)
+            )
+            & inside
         ).astype(np.uint8)
         candidate = cv2.morphologyEx(
             candidate,
             cv2.MORPH_OPEN,
             np.ones((2, 2), dtype=np.uint8),
         )
+        candidate = cv2.morphologyEx(
+            candidate,
+            cv2.MORPH_CLOSE,
+            cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)),
+        )
         votes += candidate
 
-    required_votes = max(1, int(len(frames) * 0.55 + 0.999))
+    # Text can animate, shimmer or change colour.  A lower temporal vote
+    # still rejects most moving background detail while retaining transient
+    # coloured glyphs that are visible in only part of a batch.
+    required_votes = max(1, int(len(frames) * 0.35 + 0.999))
     core = (votes >= required_votes).astype(np.uint8)
 
     component_count, labels, stats, _ = cv2.connectedComponentsWithStats(

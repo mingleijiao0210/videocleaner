@@ -653,7 +653,8 @@ class MainWindow(QMainWindow):
             return
         if mode == "ai_strong":
             self.effect_hint_label.setText(
-                "推荐真实背景融合：把 OCR 方框收紧为白色、黄色等实际文字笔画，"
+                "推荐真实背景融合：自动识别白色、彩色、描边和渐变文字笔画，"
+                "不区分中文、英文或其他文字形态，"
                 "只重建文字和描边覆盖的像素，选区内其他草地、水面和纹理保持原画；"
                 "M2 Pro 会按 24 帧安全批次处理、后台预解码并复用连续字幕遮罩；"
                 "视频由 VideoToolbox 单次硬件编码。"

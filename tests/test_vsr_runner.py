@@ -246,6 +246,62 @@ def test_overlay_mask_keeps_character_strokes_not_the_ocr_rectangle():
     assert not np.any(refined[:, :12])
 
 
+def test_overlay_mask_covers_multicolor_latin_and_cjk_strokes():
+    frames = []
+    truth = np.zeros((100, 300), dtype=np.uint8)
+    for _index in range(8):
+        frame = np.full((100, 300, 3), (80, 100, 110), dtype=np.uint8)
+        cv2.putText(
+            frame,
+            "彩色 ABC",
+            (20, 65),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1.3,
+            (0, 255, 0),
+            3,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            frame,
+            "彩色 ABC",
+            (145, 65),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1.3,
+            (255, 0, 255),
+            3,
+            cv2.LINE_AA,
+        )
+        frames.append(frame)
+    cv2.putText(
+        truth,
+        "彩色 ABC",
+        (20, 65),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        1.3,
+        255,
+        3,
+        cv2.LINE_AA,
+    )
+    cv2.putText(
+        truth,
+        "彩色 ABC",
+        (145, 65),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        1.3,
+        255,
+        3,
+        cv2.LINE_AA,
+    )
+    rectangle = np.zeros((100, 300), dtype=np.uint8)
+    rectangle[10:85, 5:295] = 255
+    refined = _refine_overlay_text_mask(frames, rectangle)
+    coverage = np.count_nonzero(cv2.bitwise_and(refined, truth)) / max(
+        np.count_nonzero(truth), 1
+    )
+    assert coverage >= 0.90
+    assert np.count_nonzero(refined) < np.count_nonzero(rectangle) * 0.55
+
+
 def test_ai_text_modes_use_controlled_outline_margin():
     assert _mask_deviation_for_mode("strong") == 12
     assert _mask_deviation_for_mode("fast") == 12
